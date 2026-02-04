@@ -3,18 +3,13 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import Callback from "./models/Callback.js";
+import nodemailer from "nodemailer";
+import twilio from "twilio";
 
 dotenv.config();
-
 const app = express();
 
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true,
-  }),
-);
+app.use(cors({ origin: "*", methods: ["GET", "POST"], credentials: true }));
 app.use(express.json());
 
 mongoose
@@ -22,48 +17,20 @@ mongoose
   .then(() => console.log("MongoDB Connected..."))
   .catch((err) => console.log("MongoDB Error:", err));
 
-const Institute = mongoose.model(
-  "Institute",
-  new mongoose.Schema({
-    name: String,
-    location: String,
-    tagline: String,
-    description: String,
-    image: String,
-    rating: Number,
-    offerings: [{ name: String, fee: String, duration: String }],
-    reviews: [{ user: String, rating: Number, comment: String, date: String }],
-  }),
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const twilioClient = twilio(
+  process.env.TWILIO_SID,
+  process.env.TWILIO_AUTH_TOKEN,
 );
 
-app.get("/api/institutes", async (req, res) => {
-  try {
-    const data = await Institute.find();
-    console.log(`Fetched ${data.length} institutes`);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json([]);
-  }
-});
-
-app.get("/api/institutes/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-
-    const institute = await Institute.findById(req.params.id);
-
-    if (!institute) {
-      return res.status(404).json({ message: "Institute not found." });
-    }
-    res.json(institute);
-  } catch (err) {
-    console.error("Error fetching institute", err);
-    res.status(500).json({ message: "Server is invalid." });
-  }
-});
-
 app.post("/api/callbacks", async (req, res) => {
-  console.log("Request Received:", req.body);
   try {
     const { name, phone, instituteId, instituteName } = req.body;
 
@@ -73,12 +40,31 @@ app.post("/api/callbacks", async (req, res) => {
       instituteId,
       instituteName,
     });
-
     await newRequest.save();
-    console.log("Saved to MongoDB");
-    res.status(201).json({ message: "Request saved!" });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: "ayushkasera710@gmail.com",
+      subject: `New enquiry from ${instituteName}`,
+      text: `New callback request:\n\nName: ${name}\nPhone: ${phone}\nInstitute: ${instituteName}`,
+    };
+    await transporter.sendMail(mailOptions);
+
+    try {
+      await twilioClient.messages.create({
+        from: "whatsapp:+14155238886", // Twilio Sandbox Number
+        to: "whatsapp:+918800518761", // Aapka Verified Number
+        body: `New Lead: ${name} (${phone}) for ${instituteName}`,
+      });
+      console.log("WhatsApp sent successfully");
+    } catch (waError) {
+      console.error("WhatsApp Error:", waError.message);
+      // WhatsApp fail bhi ho jaye toh lead save ho chuki hai, isliye crash na karein
+    }
+
+    res.status(201).json({ message: "Request saved and notifications sent!" });
   } catch (err) {
-    console.error("Save Error:", err.message); // Ye Render logs mein dikhega
+    console.error("Route Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
