@@ -66,6 +66,7 @@ app.get("/api/institutes/:id", async (req, res) => {
 app.post("/api/callbacks", async (req, res) => {
   try {
     const { name, phone, instituteId, instituteName } = req.body;
+
     const newRequest = new Callback({
       name,
       phone,
@@ -74,27 +75,29 @@ app.post("/api/callbacks", async (req, res) => {
     });
     await newRequest.save();
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: "ayushkasera710@gmail.com",
-      subject: `New enquiry from ${instituteName}`,
-      text: `New callback request:\n\nName: ${name}\nPhone: ${phone}\nInstitute: ${instituteName}`,
-    };
-    await transporter.sendMail(mailOptions);
+    res.status(201).json({ message: "Request saved!" });
 
-    try {
-      await twilioClient.messages.create({
+    transporter
+      .sendMail({
+        from: process.env.EMAIL_USER,
+        to: "ayushkasera710@gmail.com",
+        subject: `New enquiry from ${instituteName}`,
+        text: `Name: ${name}\nPhone: ${phone}\nInstitute: ${instituteName}`,
+      })
+      .catch((err) => console.error("Email Background Error:", err.message));
+
+    twilioClient.messages
+      .create({
         from: "whatsapp:+14155238886",
         to: "whatsapp:+918800518761",
         body: `New Lead: ${name} (${phone}) for ${instituteName}`,
-      });
-    } catch (waError) {
-      console.error("WhatsApp Error:", waError.message);
-    }
-
-    res.status(201).json({ message: "Request saved and notifications sent!" });
+      })
+      .catch((err) => console.error("WhatsApp Background Error:", err.message));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Main Route Error:", err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Server Error" });
+    }
   }
 });
 
