@@ -17,6 +17,20 @@ mongoose
   .then(() => console.log("MongoDB Connected..."))
   .catch((err) => console.log("MongoDB Error:", err));
 
+const Institute = mongoose.model(
+  "Institute",
+  new mongoose.Schema({
+    name: String,
+    location: String,
+    tagline: String,
+    description: String,
+    image: String,
+    rating: Number,
+    offerings: [{ name: String, fee: String, duration: String }],
+    reviews: [{ user: String, rating: Number, comment: String, date: String }],
+  }),
+);
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -30,10 +44,28 @@ const twilioClient = twilio(
   process.env.TWILIO_AUTH_TOKEN,
 );
 
+app.get("/api/institutes", async (req, res) => {
+  try {
+    const data = await Institute.find();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json([]);
+  }
+});
+
+app.get("/api/institutes/:id", async (req, res) => {
+  try {
+    const institute = await Institute.findById(req.params.id);
+    if (!institute) return res.status(404).json({ message: "Not found" });
+    res.json(institute);
+  } catch (err) {
+    res.status(500).json({ message: "Invalid ID" });
+  }
+});
+
 app.post("/api/callbacks", async (req, res) => {
   try {
     const { name, phone, instituteId, instituteName } = req.body;
-
     const newRequest = new Callback({
       name,
       phone,
@@ -52,19 +84,16 @@ app.post("/api/callbacks", async (req, res) => {
 
     try {
       await twilioClient.messages.create({
-        from: "whatsapp:+14155238886", // Twilio Sandbox Number
-        to: "whatsapp:+918800518761", // Aapka Verified Number
+        from: "whatsapp:+14155238886",
+        to: "whatsapp:+918800518761",
         body: `New Lead: ${name} (${phone}) for ${instituteName}`,
       });
-      console.log("WhatsApp sent successfully");
     } catch (waError) {
       console.error("WhatsApp Error:", waError.message);
-      // WhatsApp fail bhi ho jaye toh lead save ho chuki hai, isliye crash na karein
     }
 
     res.status(201).json({ message: "Request saved and notifications sent!" });
   } catch (err) {
-    console.error("Route Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
