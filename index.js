@@ -25,8 +25,12 @@ const Institute = mongoose.model(
   new mongoose.Schema({
     name: String,
     location: String,
+    tagline: String,
     description: String,
     image: String,
+    rating: Number,
+    offerings: [{ name: String, fee: String, duration: String }],
+    reviews: [{ user: String, rating: Number, comment: String, date: String }],
   }),
 );
 
@@ -37,6 +41,22 @@ app.get("/api/institutes", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json([]);
+  }
+});
+
+app.get("api/institutes/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const institute = await Institute.findById;
+
+    if (!institute) {
+      return res.status(404).json({ message: "Institute not found." });
+    }
+    res.json(institute);
+  } catch (err) {
+    console.error("Error fetching institute", err);
+    res.status(500).json({ message: "Server is invalid." });
   }
 });
 
