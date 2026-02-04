@@ -2,9 +2,9 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import Callback from "./models/Callback.js";
 
 dotenv.config();
-const PORT = process.env.PORT || 5000;
 
 const app = express();
 
@@ -62,6 +62,26 @@ app.get("/api/institutes/:id", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 5000, () =>
-  console.log(`Server running on port ${process.env.PORT}`),
-);
+app.post("/api/callbacks", async (req, res) => {
+  console.log("Request Received:", req.body);
+  try {
+    const { name, phone, instituteId, instituteName } = req.body;
+
+    const newRequest = new Callback({
+      name,
+      phone,
+      instituteId,
+      instituteName,
+    });
+
+    await newRequest.save();
+    console.log("Saved to MongoDB");
+    res.status(201).json({ message: "Request saved!" });
+  } catch (err) {
+    console.error("Save Error:", err.message); // Ye Render logs mein dikhega
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
