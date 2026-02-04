@@ -4,7 +4,7 @@ A fullstack CRUD website
 
 ## Frontend
 
-For frontendcode [coachingmandi-server](https://github.com/ayushkas3ra/coachingmandi)
+For frontendcode [coachingmandi-frontend](https://github.com/ayushkas3ra/coachingmandi)
 
 
 ## LIVE
